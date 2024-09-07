@@ -1,0 +1,18 @@
+= Inkscalibur
+:toc:
+
+== Introduction
+=== What is this?
+This is a guide to get set up running https://github.com/Klipper3d/klipper[Klipper] in tandem with your https://blot.hackclub.com[Hack Club Blot], a drawing machine created by Hack Club.
+
+== Prerequisites
+=== Required
+* 1x Hack Club Blot drawing machine, assembled
+* 1x Raspberry Pi 3B or newer(a Zero, Zero 2 or any RP2040/Pico varient will not work)
+** Depending on your board specifics, these instructions may vary. If using a different board besides the ones above, you may have to adjust some steps to fit your needs best.
+* Topic knowledge
+** Some knowledge of how a 3D printer or CNC machine operates
+** Experience with flashing your Raspberry Pi
+
+=== Optional
+* 1x https://sprig.hackclub.com[Hack Club Sprig]
