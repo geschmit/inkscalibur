@@ -3,16 +3,125 @@
 
 == Introduction
 === What is this?
-This is a guide to get set up running https://github.com/Klipper3d/klipper[Klipper] in tandem with your https://blot.hackclub.com[Hack Club Blot], a drawing machine created by Hack Club.
+This is a guide to get set up running https://github.com/Klipper3d/klipper[Klipper] in tandem with your https://blot.hackclub.com[Hack Club Blot], a drawing machine created by Hack Club. 
+
+TIP: For high schoolers with proof of age and origin, you can ship a piece of artwork to be displayed on Hack Club's website and get over 100$ of drawing hardware for free! See more at https://github.com/hackclub/blot[@hackclub/blot].
+
+=== What can this do?
+* Interpret GCode commands as drawing instructions
+* Draw at much, much higher speeds than the stock firmware(an 8x difference w/o fine tuning!)
+* Allow remote control via Mainsail
+** Loading of drawings to be drawn without the need for a physical serial connection
+** File storage of previous prints for ease of reprinting
+* Full control over the XIAO RP2040's peripherals
+** Includes the board's RGB LED and NeoPixel
+* Enable the https://sprig.hackclub.com[Hack Club Sprig] to be used as a controller for moving the pen manually on the print bed 
+
+=== What can this NOT do?
+* Run code from the Blot web interface
+* _Directly_ draw a SVG or other vector graphic
+** You need to convert it to GCode before plotting. Read the guide for more info on this subject.
 
 == Prerequisites
+image::imgs/required.JPG[500,500]
 === Required
 * 1x Hack Club Blot drawing machine, assembled
-* 1x Raspberry Pi 3B or newer(a Zero, Zero 2 or any RP2040/Pico varient will not work)
-** Depending on your board specifics, these instructions may vary. If using a different board besides the ones above, you may have to adjust some steps to fit your needs best.
+** Includes PSU your Blot shipped with, or an equal or greater wattage(45W) USB-C PSU
+** 1x USB-A -> USB-C cable to connect your Blot's XIAO RP2040 MCU to your Raspberry Pi
+* 1x Raspberry Pi 3B+ or newer(a Zero, Zero 2 or any RP2040/Pico varient will not work)
+** Additionally, a MicroSD card with 8GB or more in size to hold your operating system and plotted files, in addition to either a USB-C or USB-Micro B cable to power your Raspberry
+* A drawing utensel(preferably, a pen)
+** The smaller the ballpoint, the more detailed your drawings will be. I suggest https://www.pilotpenpromo.com/p/product/24696cce-0981-4d10-97de-16bc322b8752/g2-premium-gel-roller-pen-0-38mm[Pilot's G-2 0.38 MM] for the best quality and availability, but any old pen should do. In addition, I don't suggest using a Sharpie or other fineliner, as those will bleed and make thicker lines than what the tip is advertised to be.
 * Topic knowledge
-** Some knowledge of how a 3D printer or CNC machine operates
-** Experience with flashing your Raspberry Pi
+** Knowledge of how a 3D printer or CNC machine operates
+** Experience with flashing a Raspberry Pi, as well as remote login via SSH
 
 === Optional
-* 1x https://sprig.hackclub.com[Hack Club Sprig]
+* 1x Hack Club Sprig, if you intend on using the gamepad configuration
+** Additionally, a USB-A -> USB-Micro B cable to connect your Sprig to your Raspberry Pi
+** This will allow you to use your Sprig as an input device for your Blot to input some basic movement commands.
+* 1x USB Webcam
+** This will allow you to view your Blot over the network while it's drawing your art.
+** In this guide, I'm using a photography-grade camera to capture my drawing space, but any standard camera should work fine.
+
+== Setup procedure
+=== Flash your Raspberry Pi
+
+IMPORTANT: Ensure you have the Raspberry Pi Imager installed on your system before beginning this step.
+
+Depending on which board you are using, instructions may vary. For this guide, we'll be using a Raspberry Pi 3B, with a 8GB SanDisk MicroSD card.
+
+Insert your MicroSD card into your computer and launch the imager. When prompted, select your device from the list. Then, when selecting an operating system, select `Other specific-purpose os` -> `3D Printing` -> `Mainsail OS` -> `Mainsail OS X.X.X - Raspberry Pi (64-bit)`. Finally, select your storage device and click next.
+
+image::imgs/imager_selections.gif[500,500]
+
+* This will setup your Raspberry with Klipper, Moonraker and Mainsail, which lets you configure your Blot remotely without the need to plug it into a keyboard or display.
+
+NOTE: You need to apply customization settings in order to login over SSH- by default, your Raspberry won't know what network to connect with. If you haven't done a configuration with the imager before:
+
+* When asked "Would you like to apply customization settings?", press edit settings to enter the setup dialog.
+
+image::imgs/imager_config.gif[500,500]
+
+* Make sure all of the following are checked and set:
+** *General*
+*** Set hostname: Set this to a name you can remember when logging into your device. If you have hostname resolution for your router(chances are you do), you can substitute this in place of your Raspberry's IP address.
+*** Set username and password: Choose a username and password you can login into the Raspberry with over the network. These are both case sensitive, so ensure you type them correctly and remember exactly what they are.
+*** Configure wireless LAN: If you don't plan on using the Raspberry's ethernet jack, you can configure a WiFi network to connect with. The SSID is your network's name, along with your WiFi password. Most often, you shouldn't need to change the Wireless LAn country, but if you find issues later on, set this to your country's locale code.
+*** Set locale settings: Set the timezone to your region's timezone. As you're connecting headlessly, you technically don't need to change the keyboard's layout, but you can also set this to your locale's identifier incase you change your mind later on.
+** *Services*
+*** Check "Use password authentication". This will allow you to use your username and password in place of a SSH key to login remotely.
+* Close out of the dialog and press yes to apply the settings to your install.
+
+WARNING: Clicking yes on the following dialog will erase all of the data on your MicroSD card. Pause for a moment and ensure what you have on there isn't worth pulling your hair out about!
+
+Once the imager has completed flashing your MicroSD card, eject it and insert the MicroSD card into your Raspberry to continue.
+
+=== Powering up & logging in
+
+NOTE: Do NOT plug in your Blot just yet- we need to go in and change a few things beforehand.
+
+Plug in your Raspberry and give it around 3-5 minutes for it to resize it's filesystem and connect to your network. Once that's passed, you can go ahead and give it a few pings to see if it responds, with the hostname you chose earlier:
+
+image::imgs/shell_pings.png[500,700]
+
+TIP: If it doesn't seem to be responding to be responding to your pings, try adding `.local` to the end of your host address- this seems to be the case especially on Apple devices.
+
+Now, login to your Raspberry using `ssh username@host`, where username is the name you chose earlier and host is the host or IP address of your machine. In my case, my username is `geschmit` and my hostname is `inkscalibur`, so I'd use `ssh geschmit@inkscalibur` to login to my Raspberry. If it asks you to accept a key, type "yes" followed by enter- SSH is very picky about this being exact. Afterwards, enter your user's password. If all goes well, you'll get a shell to your Raspberry- you're in!
+
+image::imgs/shell_login.gif[500,700]
+
+=== Flashing your Blot's XIAO RP2040
+
+Before you can continue with setting up the web interface, you must flash your microcontroller with Klipper's firmware. Thankfully, Mainsail OS has all of the requirements we need to compile it, so all you need to do is change a few things in the config menu to target the right chip you're using.
+
+To ensure your steppers don't jam or likewise damage themselves, take your XIAO RP2040(the little black thing that says seeed studio on it) _completely_ out of your Blot and set it aside. You'll be flashing this in a moment, so also get a USB-C cable that you can plug into your computer.
+
+image::imgs/xiao_closeup.JPG[500,300]
+_Behold, Shawn's mildly bad solder job, caught in (actual) 4K._
+
+From your Raspberry's SSH session, paste this code in:
+[,bash]
+----
+cd klipper
+make menuconfig
+make
+----
+* These commands will jump you to Klipper's directory and open the configuration dialog for building firmware.
+
+From the dialog, scroll down to `Micro-controller Architecture`, press enter, scroll to `Raspberry Pi RP2040` and press enter again. This will initialize the configuration with the default values for this chip- you can leave all of these how they are and press Q to exit. When prompted, save your configuration by pressing Y.
+
+TIP: Use your arrow keys to navigate menus.
+
+* This will create and save a configuration, then immediately begin building your firmware. Depending on your system, this could take 2-4 minutes.
+
+Once the build process is finished, you're ready to flash. While holding down the BOOTSEL button, connect your microcontroller to your Raspberry to put it into UF2 boot mode. This will advertise it to the system as being ready for a firmware update.
+
+Now, tell Klipper to flash your microcontroller with:
+[,bash]
+----
+sudo make flash FLASH_DEVICE=2e8a:0003
+----
+This tells Klipper to look for a Raspberry Pi device connected over USB. If successfully found, it'll quickly flash your microcontroller and get it ready for use. Once completed, unplug it from your Raspberry and reinsert it back into your Blot.
+
+WARNING: Functionality relating to the Blot web interface will not function until you reflash again with the stock Blot firmware.
